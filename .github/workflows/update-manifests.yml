@@ -1,10 +1,10 @@
-name: Update EKS Manifests
+name: Update Kubernetes Manifests
 
 on:
   workflow_call:
     inputs:
       image_tag:
-        description: "Image tag to write into k8s/eks deployment manifests"
+        description: "Image tag to write into Kubernetes deployment manifests"
         required: true
         type: string
 
@@ -21,23 +21,23 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Update image tags in k8s/eks manifests
+      - name: Update image tags in Kubernetes manifests
         env:
           IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
           set -euo pipefail
-          sed -i "s#${BACKEND_IMAGE}:.*#${BACKEND_IMAGE}:${IMAGE_TAG}#" k8s/eks/08-backend-deployment.yml
-          sed -i "s#${FRONTEND_IMAGE}:.*#${FRONTEND_IMAGE}:${IMAGE_TAG}#" k8s/eks/10-frontend-deployment.yml
+          sed -i "s#${BACKEND_IMAGE}:.*#${BACKEND_IMAGE}:${IMAGE_TAG}#" k8s/backend-deployment.yaml
+          sed -i "s#${FRONTEND_IMAGE}:.*#${FRONTEND_IMAGE}:${IMAGE_TAG}#" k8s/frontend-deployment.yaml
 
       - name: Commit and push updated manifests
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add k8s/eks/08-backend-deployment.yml k8s/eks/10-frontend-deployment.yml
+          git add k8s/backend-deployment.yaml k8s/frontend-deployment.yaml
           if git diff --cached --quiet; then
             echo "No manifest changes to commit"
             exit 0
           fi
-          git commit -m "chore: update k8s/eks image tags to ${{ inputs.image_tag }} [skip ci]"
+          git commit -m "chore: update Kubernetes image tags to ${{ inputs.image_tag }} [skip ci]"
           git push
