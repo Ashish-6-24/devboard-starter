@@ -5,7 +5,7 @@ frontend:
 
   image:
     repository: ashish0624/devboard-frontend
-    tag: latest
+    tag: "feca0e4"
     pullPolicy: Always
 
   service:
@@ -27,7 +27,7 @@ backend:
 
   image:
     repository: ashish0624/devboard-backend
-    tag: latest
+    tag: "feca0e4"
     pullPolicy: Always
 
   service:
@@ -59,7 +59,16 @@ postgres:
   auth:
     database: devboard
     username: devboard
-    password: "devboard"
+
+  existingSecret: secret-devboard
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
 
 ingress:
   enabled: false

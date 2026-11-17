@@ -227,8 +227,24 @@ The browser calls these as `/api/...`; the backend serves them at the root.
 
 ---
 
-This repo intentionally ships without `.github/workflows` or `k8s/` — you'll
-build the CI/CD pipeline and the Kubernetes manifests yourself as part of the
-masterclass, starting from this working app.
+## Kubernetes and Argo CD
+
+The Argo CD Application in `argocd/application.yaml` deploys the Helm chart at
+`helm/devboard/`, using `values-minikube.yaml` in namespace `devboard-helm`.
+Those values enable the `devboard.local` Nginx Ingress. The Minikube ingress
+addon must be enabled and `devboard.local` must resolve to the Minikube IP.
+
+The chart expects a pre-created Kubernetes Secret named `secret-devboard`
+containing the `POSTGRES_PASSWORD` key. Do not store that value in Helm values
+or commit a Secret manifest. Existing database credentials must be preserved
+and rotated in PostgreSQL and Kubernetes together.
+
+The legacy raw manifests in `k8s/` instead expect a pre-created Secret named
+`devboard-secret` in namespace `devboard`.
+
+The CI image-update workflow writes immutable build tags to
+`helm/devboard/values.yaml`, which is the source Argo CD watches. The raw
+manifests in `k8s/` are retained for manual use and are not the Argo CD source.
+Once Argo CD manages the Helm release, do not also upgrade it with the Helm CLI.
 
 

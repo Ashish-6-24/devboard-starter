@@ -562,6 +562,27 @@ PostgreSQL resources into the namespace selected by `-n`. For a first test,
 use a new namespace so Helm does not conflict with resources previously
 created directly with `kubectl`.
 
+The chart reads PostgreSQL credentials from a pre-created Secret named
+`secret-devboard` by default. For a fresh namespace, create the namespace and
+Secret before installing:
+
+```bash
+kubectl create namespace devboard-helm
+read -rsp 'PostgreSQL password: ' POSTGRES_PASSWORD
+printf '\n'
+kubectl create secret generic secret-devboard \
+  --namespace devboard-helm \
+  --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
+unset POSTGRES_PASSWORD
+```
+
+If the Secret already exists, preserve it and verify it matches the database;
+changing a Kubernetes Secret alone does not rotate the PostgreSQL role password.
+
+The commands below are for a standalone Helm-managed release. This repository's
+Argo CD Application also points at this chart and namespace. Once Argo CD owns
+the release, make changes in Git and do not run `helm upgrade` against it.
+
 ```bash
 helm lint ./helm/devboard
 helm template devboard ./helm/devboard -n devboard-helm
@@ -592,13 +613,10 @@ node's CPU architecture.
 
 PostgreSQL uses a PVC. Confirm the cluster has a default StorageClass with
 `kubectl get storageclass`; without a provisioner, the database PVC can stay
-`Pending`. The default database password in `values.yaml` is for local/demo
-use only; replace it for any shared or production deployment.
+`Pending`. The Minikube values enable Ingress at `devboard.local`; the Minikube
+ingress addon and a client-side host mapping are required to use that address.
 
-To upgrade the release after changing chart values:
-
-```bash
-helm upgrade devboard ./helm/devboard \
-  --namespace devboard-helm \
-  -f ./helm/devboard/values-ec2.yaml
-```
+For the Argo CD-managed release, update chart values in Git. The image-update
+workflow writes immutable commit-SHA tags to `helm/devboard/values.yaml`, and
+Argo CD reconciles those changes automatically. The `k8s/` manifests remain a
+separate, legacy deployment path.

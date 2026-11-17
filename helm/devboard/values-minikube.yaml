@@ -1,9 +1,22 @@
 frontend:
   replicaCount: 1
+  image:
+    tag: "feca0e4"
 
 backend:
   replicaCount: 1
+  image:
+    tag: "feca0e4"
 
 postgres:
   storage:
     size: 1Gi
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: devboard.local
+      paths:
+        - path: /
+          pathType: Prefix

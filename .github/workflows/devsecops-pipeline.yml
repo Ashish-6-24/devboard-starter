@@ -7,6 +7,8 @@ on:
       - "backend/**"
       - "frontend/**"
       - "k8s/**"
+      - "helm/**"
+      - "argocd/**"
       - ".github/workflows/**"
   pull_request:
     branches: [main]
@@ -14,6 +16,8 @@ on:
       - "backend/**"
       - "frontend/**"
       - "k8s/**"
+      - "helm/**"
+      - "argocd/**"
       - ".github/workflows/**"
   workflow_dispatch: {}
 
@@ -22,8 +26,57 @@ permissions:
   security-events: write
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      application: ${{ steps.detect.outputs.application }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect application source changes
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            changed=true
+          elif [[ "$EVENT_NAME" != "push" ]]; then
+            changed=false
+          elif [[ "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+            changed=true
+          elif git diff --quiet "$BEFORE_SHA" "$AFTER_SHA" -- backend frontend; then
+            changed=false
+          else
+            changed=true
+          fi
+          echo "application=$changed" >> "$GITHUB_OUTPUT"
+
   code-quality:
     uses: ./.github/workflows/code-quality.yml
+
+  helm-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+
+      - name: Lint and render chart
+        run: |
+          helm lint ./helm/devboard
+          helm template devboard ./helm/devboard \
+            --namespace devboard-helm \
+            --values ./helm/devboard/values-minikube.yaml
 
   secrets-scan:
     uses: ./.github/workflows/secrets-scan.yml
@@ -36,8 +89,8 @@ jobs:
     uses: ./.github/workflows/docker-lint.yml
 
   build-and-push:
-    if: github.event_name != 'pull_request'
-    needs: [code-quality, secrets-scan, dependency-scan, docker-lint]
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.detect-changes.outputs.application == 'true')
+    needs: [detect-changes, code-quality, secrets-scan, dependency-scan, docker-lint, helm-validation]
     uses: ./.github/workflows/build-and-push.yml
     secrets: inherit
 
