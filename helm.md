@@ -132,7 +132,11 @@ This is the fastest way to see Helm's value: one command installs a Deployment, 
 
 ---
 
-## 4. Helm Chart for DevBoard (kind manifests)
+## 4. Historical Helm notes
+
+> The examples in this section describe an older chart layout and do not match
+> the current chart. Use section 5 and the chart in `helm/devboard/` to deploy
+> the current application.
 
 The `k8s/` folder (ignoring `k8s/eks`) contains plain manifests for the DevBoard app on **kind**:
 
@@ -188,7 +192,7 @@ appVersion: "1.0.0"
 namespace: devboard-ns
 
 frontend:
-  image: trainwithshubham/devboard-frontend:latest
+  image: ashish0624/devboard-frontend:latest
   replicas: 1
   containerPort: 4173
   service:
@@ -204,7 +208,7 @@ frontend:
       memory: 128Mi
 
 backend:
-  image: trainwithshubham/devboard-backend:latest
+  image: ashish0624/devboard-backend:latest
   replicas: 1
   containerPort: 8080
   service:
@@ -535,7 +539,7 @@ and the backend Deployment's env resolution (`configMapKeyRef`/
 `secretKeyRef`/`$(POSTGRES_USER)` interpolation) were confirmed structurally
 correct against the live API server.
 
-> **Known gap, not a chart bug:** `trainwithshubham/devboard-frontend` and
+> **Known gap, not a chart bug:** `ashish0624/devboard-frontend` and
 > `devboard-backend` are currently published as **amd64-only** images (no
 > arm64 manifest). On an Apple Silicon Mac, a local kind cluster runs
 > arm64 nodes, so pulling either image fails with `no match for platform
@@ -550,3 +554,51 @@ correct against the live API server.
 - **Configurable via `values.yaml`** — change image tags, replica counts, resource limits, or storage size without editing manifests.
 - **Versioned releases** — `helm history devboard` tracks every change; `helm rollback` undoes a bad upgrade instantly.
 - **Environment-specific overrides** — a `values-eks.yaml` could later target the EKS setup (in `k8s/eks`) using the same chart with different values, instead of maintaining a fully separate manifest set.
+
+## 5. Deploy the current DevBoard chart on EC2
+
+The current chart is in `helm/devboard/`. It installs frontend, backend, and
+PostgreSQL resources into the namespace selected by `-n`. For a first test,
+use a new namespace so Helm does not conflict with resources previously
+created directly with `kubectl`.
+
+```bash
+helm lint ./helm/devboard
+helm template devboard ./helm/devboard -n devboard-helm
+
+helm upgrade --install devboard ./helm/devboard \
+  --namespace devboard-helm --create-namespace \
+  -f ./helm/devboard/values-ec2.yaml
+
+kubectl get pods,svc,pvc -n devboard-helm
+```
+
+The EC2 values expose the frontend as NodePort `30080`; when all pods are
+`Running`/`Ready`, visit `http://<EC2-public-IP>:30080`. Allow inbound TCP
+`30080` in the EC2 security group, preferably only from your own IP. This
+works only when that EC2 instance is a Kubernetes node reachable by the
+cluster's NodePort service.
+
+On a fresh database volume, the chart loads the schema and sample rows from
+`helm/devboard/files/`. PostgreSQL only runs these init scripts when its data
+directory is empty; changing the scripts does not migrate an existing database.
+
+If a pod reports `ImagePullBackOff`, check
+`kubectl describe pod <pod-name> -n devboard-helm` and its Events. The chart
+can reference a private-registry pull secret via `imagePullSecrets` in a
+custom values file, but the Kubernetes secret must already exist in the
+release namespace. Also check that the image tag exists and supports the
+node's CPU architecture.
+
+PostgreSQL uses a PVC. Confirm the cluster has a default StorageClass with
+`kubectl get storageclass`; without a provisioner, the database PVC can stay
+`Pending`. The default database password in `values.yaml` is for local/demo
+use only; replace it for any shared or production deployment.
+
+To upgrade the release after changing chart values:
+
+```bash
+helm upgrade devboard ./helm/devboard \
+  --namespace devboard-helm \
+  -f ./helm/devboard/values-ec2.yaml
+```

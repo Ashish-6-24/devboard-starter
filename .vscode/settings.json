@@ -1,0 +1,6 @@
+{
+  "files.associations": {
+    "**/helm/devboard/templates/*.yaml": "helm-template",
+    "**/helm/devboard/templates/*.tpl": "helm-template"
+  }
+}

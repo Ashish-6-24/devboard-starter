@@ -1,0 +1,74 @@
+imagePullSecrets: []
+
+frontend:
+  replicaCount: 1
+
+  image:
+    repository: ashish0624/devboard-frontend
+    tag: latest
+    pullPolicy: Always
+
+  service:
+    type: ClusterIP
+    port: 4173
+    targetPort: 4173
+    nodePort: null
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+backend:
+  replicaCount: 1
+
+  image:
+    repository: ashish0624/devboard-backend
+    tag: latest
+    pullPolicy: Always
+
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+postgres:
+  image:
+    repository: postgres
+    tag: "16-alpine"
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 5432
+
+  storage:
+    size: 1Gi
+    storageClassName: ""
+
+  auth:
+    database: devboard
+    username: devboard
+    password: "devboard"
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: devboard.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
