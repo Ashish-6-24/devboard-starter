@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ashish0624/devboard-frontend:latest
+          image: ashish0624/devboard-frontend:feca0e4
           imagePullPolicy: Always
 
           ports:
